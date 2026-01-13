@@ -15,15 +15,7 @@ local Keys = {
 local QBCore = exports['qb-core']:GetCoreObject()
 local PlayerData = QBCore.Functions.GetPlayerData()
 
--- Initialize player data when resource starts
-RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
-    PlayerData = QBCore.Functions.GetPlayerData()
-end)
 
--- Update player data when it changes
-RegisterNetEvent('QBCore:Client:OnJobUpdate', function(JobInfo)
-    PlayerData.job = JobInfo
-end)
 
 -- Main initialization
 CreateThread(function()
@@ -323,13 +315,15 @@ AddEventHandler("gldnrmz-hookers:ChosenHooker", function(model)
         CreateHooker(model)
         Citizen.CreateThread(function()
             local textShown = false
-        
+            local lastPedsNearby = nil
+
             while true do
                 Wait(5)
                 local Coords, letSleep = GetEntityCoords(PlayerPedId()), true
         
-                if OnRouteToHooker then
-                    local distance = GetDistanceBetweenCoords(Coords, Config.Hookerspawns[spawn].x, Config.Hookerspawns[spawn].y, Config.Hookerspawns[spawn].z, true)
+                if OnRouteToHooker and DoesEntityExist(Hooker) then
+                    local hookerCoords = GetEntityCoords(Hooker)
+                    local distance = #(Coords - hookerCoords)
         
                     if distance < Config.DrawMarker then
                         letSleep = false
@@ -338,16 +332,12 @@ AddEventHandler("gldnrmz-hookers:ChosenHooker", function(model)
         
                         if GetPedInVehicleSeat(vehicle, -1) and IsPedInVehicle(ped, vehicle, true) and IsVehicleSeatFree(vehicle, 0) and not IsVehicleSeatFree(vehicle, -1) then
                             if not textShown then
-                                lib.showTextUI('[E] To signal Hooker', {
-                                    position = 'right-center',
-                                    icon = 'hand-sparkles'
-                                })
+                                exports['arp_ui']:Show('E', 'Honk Horn')
                                 textShown = true
                             end
         
                             if IsControlJustPressed(0, Keys["E"]) then
-                                print("[DEBUG] E pressed - signaling hooker")
-                                lib.hideTextUI()
+                                exports['arp_ui']:Hide()
                                 textShown = false
                                 TriggerEvent('animations:client:EmoteCommandStart', {"whistle"})
                                 RemoveBlip(HookerBlip)
@@ -378,7 +368,7 @@ AddEventHandler("gldnrmz-hookers:ChosenHooker", function(model)
                         end
                     else
                         if textShown then
-                            lib.hideTextUI()
+                            exports['arp_ui']:Hide()
                             textShown = false
                         end
                     end
@@ -392,21 +382,33 @@ AddEventHandler("gldnrmz-hookers:ChosenHooker", function(model)
                         letSleep = false
         
                         if IsVehicleStopped(vehicle) then
-                            if not textShown then
-                                lib.showTextUI('[E] To open Services | [H] Tell her to leave', {
-                                    position = 'right-center',
-                                    icon = 'comments'
-                                })
+                            local pedsNearby = ArePedsNearby()
+
+                            if not textShown or (lastPedsNearby ~= pedsNearby) then
+                                if textShown then
+                                    exports['arp_ui']:Hide()
+                                end
+
+                                exports['arp_ui']:Show('H', 'To tell her to leave')
+                                if not pedsNearby then
+                                    exports['arp_ui']:Show('E', 'To open Services')
+                                end
+
                                 textShown = true
+                                lastPedsNearby = pedsNearby
                             end
-        
+            
                             if IsControlJustPressed(0, Keys["E"]) then
-                                lib.hideTextUI()
-                                textShown = false
-                                PlayAmbientSpeech1(Hooker, "Hooker_Offer_Service", "Speech_Params_Force_Shouted_Clear")
-                                TriggerEvent("gldnrmz-hookers:OpenHookerMenu")
+                                if not pedsNearby then
+                                    exports['arp_ui']:Hide()
+                                    textShown = false
+                                    PlayAmbientSpeech1(Hooker, "Hooker_Offer_Service", "Speech_Params_Force_Shouted_Clear")
+                                    TriggerEvent("gldnrmz-hookers:OpenHookerMenu")
+                                else
+                                    QBCore.Functions.Notify('Too many people around!', 'error')
+                                end
                             elseif IsControlJustPressed(0, Keys["H"]) then
-                                lib.hideTextUI()
+                                exports['arp_ui']:Hide()
                                 textShown = false
                                 HookerInCar = false
                                 PlayAmbientSpeech1(Hooker, "Hooker_Had_Enough", "Speech_Params_Force_Shouted_Clear")
@@ -415,7 +417,7 @@ AddEventHandler("gldnrmz-hookers:ChosenHooker", function(model)
                             end
                         else
                             if textShown then
-                                lib.hideTextUI()
+                                exports['arp_ui']:Hide()
                                 textShown = false
                             end
                         end
@@ -424,7 +426,7 @@ AddEventHandler("gldnrmz-hookers:ChosenHooker", function(model)
         
                 if letSleep then
                     if textShown then
-                        lib.hideTextUI()
+                        exports['arp_ui']:Hide()
                         textShown = false
                     end
                     Wait(1000)
@@ -443,7 +445,7 @@ function hookerGoHome()
     HookerSpawned = false
     HookerInCar = false  -- Add this line to ensure the flag is reset
     if textShown then    -- Add this block to ensure UI is hidden
-        lib.hideTextUI()
+        exports['arp_ui']:Hide()
         textShown = false
     end
 end
@@ -648,4 +650,20 @@ function loaddict(dict)
     end
     
     return true
+end
+
+function ArePedsNearby()
+    local playerPed = PlayerPedId()
+    local playerCoords = GetEntityCoords(playerPed)
+    local peds = GetGamePool('CPed')
+    
+    for _, ped in ipairs(peds) do
+        if ped ~= playerPed and ped ~= Hooker and not IsPedDeadOrDying(ped, true) then
+            local pedCoords = GetEntityCoords(ped)
+            if #(playerCoords - pedCoords) < Config.PedDetectionRadius then
+                return true
+            end
+        end
+    end
+    return false
 end
