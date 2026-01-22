@@ -304,16 +304,14 @@ CreateThread(function()
         loadAnimDict("mini@strip_club@idles@bouncer@base")        
         TaskPlayAnim(pimp, "mini@strip_club@idles@bouncer@base", "base", 8.0, 1.0, -1, 01, 0, 0, 0, 0)
 
-        exports['qb-target']:AddTargetEntity(pimp, { 
-            options = {
-                { 
-                    type = "client",
-                    event = "gldnrmz-hookers:OpenPimpMenu",
-                	icon = "fa-solid fa-money-bill",
-                	label = "Talk to Pimp",
-                },
-            }, 
-            distance = 1.5, 
+        exports.ox_target:addLocalEntity(pimp, {
+            {
+                name = 'talk_to_pimp',
+                event = 'gldnrmz-hookers:OpenPimpMenu',
+                icon = 'fa-solid fa-money-bill',
+                label = 'Talk to Pimp',
+                distance = 1.5
+            }
         })
     end
 end)
