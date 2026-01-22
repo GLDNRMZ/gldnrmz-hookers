@@ -16,4 +16,4 @@ client_scripts {
 
 -- Credit
 author 'Marfy, GLDNRMZ'
-version '1.1.0'
+version '1.0.0'
