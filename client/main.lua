@@ -383,22 +383,8 @@ AddEventHandler("gldnrmz-hookers:ChosenHooker", function(model)
                                 HookerInCar = true
                                 OnRouteToHooker = false
                             
-                                if math.random(1, 100) >= 10 then
-                                    exports.tk_dispatch:addCall({ 
-                                        title = 'Suspicious Activity', 
-                                        code = '10-66', 
-                                        priority = 'Priority 2', 
-                                        coords = GetEntityCoords(PlayerPedId()), 
-                                        showLocation = true, 
-                                        showGender = true, 
-                                        playSound = true, 
-                                        blip = { 
-                                            color = 3, 
-                                            sprite = 205, 
-                                            scale = 1.0, 
-                                        }, 
-                                        jobs = {'police'}, 
-                                    })
+                                if Config.IsIllegal and math.random(1, 100) <= Config.DispatchChance then
+                                    Config.Dispatch()
                                 end
                             end
                             
