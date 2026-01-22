@@ -1,63 +1,60 @@
-# LB-Hookers
-ESX to QBCore. Originally converted by [M4RFY](https://github.com/M4RFY)
+# gldnrmz-hookers
 
-# Additions
+A QBCore script for GTA V Roleplay that adds immersive hooker interactions. Players can visit a Pimp to find a hooker, pick them up, and engage in services within a vehicle.
 
-* ps-dispatch alerts 
-* qb-target
-* Stress releif
-* Disabled movement
-* Whislte to hooker
-* Optimizations 
+## Features
 
+- **Pimp NPC**: Locate a Pimp to get a random hooker location.
+- **Dynamic Spawning**: Hookers spawn at configurable locations.
+- **Vehicle Interaction**: Services (Blowjob, Sex) are only available when in a vehicle.
+- **Privacy Check**: Integrated ped detection ensures you are in a private area before services can be offered (configurable radius).
+- **Animations**: synced animations for both player and hooker.
+- **Stress Relief**: Services relieve stress.
+- **Configurable UI**: Support for multiple TextUI systems (`arp`, `qb`, `ox`, `cd`).
+- **Dispatch Integration**: Chance to alert police of solicitation.
 
-# Dependencies | ps-dispatch
+## Dependencies
 
-* Add to ps-dispatch:client:alerts
+- [qb-core](https://github.com/qbcore-framework/qb-core)
+- [ox_lib](https://github.com/overextended/ox_lib)
+- [ox_target](https://github.com/overextended/ox_target)
+- [hud](https://github.com/qbcore-framework/hud) (for stress relief)
 
+### Optional
+- [cd_drawtextui](https://github.com/Codesign-Scripts/cd_drawtextui)
+- [tk_dispatch](https://github.com/Tiago-Kyle/tk_dispatch)
+
+## Installation
+
+1. Download the resource and place it in your resources folder.
+2. Add `ensure gldnrmz-hookers` to your `server.cfg`.
+3. Configure `config.lua` to your liking.
+
+## Configuration
+
+Edit `config.lua` to adjust settings:
+
+```lua
+Config.DrawDistance = 3.0
+Config.DrawMarker = 10.0
+Config.PedDetectionRadius = 50.0 -- Radius to check for nearby peds (privacy check)
+Config.TextUI = 'ox' -- Options: 'arp', 'qb', 'ox', 'cd'
+
+Config.BlowjobPrice = 500
+Config.SexPrice = 1000
 ```
-local function Solicitation()
-    local coords = GetEntityCoords(cache.ped)
-    local vehicle = GetVehicleData(cache.vehicle)
 
-    local dispatchData = {
-        message = locale('solicitation'),
-        codeName = 'solicitation',
-        code = '10-66',
-        icon = 'fas fa-tablets',
-        priority = 2,
-        coords = coords,
-        street = GetStreetAndZone(coords),
-        heading = GetPlayerHeading(),
-        vehicle = vehicle.name,
-        plate = vehicle.plate,
-        color = vehicle.color,
-        class = vehicle.class,
-        doors = vehicle.doors,
-        jobs = { 'leo' }
-    }
+## Usage
 
-    TriggerServerEvent('ps-dispatch:server:notify', dispatchData)
-end
-exports('Solicitation', Solicitation)
-```
-* Add to ps-dispatch:shared:config
+1. Go to the Pimp (location on map/config).
+2. Talk to the Pimp to mark a hooker on your GPS.
+3. Drive to the location and honk your horn to pick her up.
+4. Drive to a secluded spot (ensure no peds are within `Config.PedDetectionRadius`).
+5. Stop the car.
+   - Press **[H]** to tell her to leave (Always available).
+   - Press **[E]** to open services menu (Only available if area is private).
 
-```
-['solicitation'] = {
-        radius = 0,
-        sprite = 279,
-        color = 48,
-        scale = 0.5,
-        length = 2,
-        sound = 'Lose_1st',
-        sound2 = 'GTAO_FM_Events_Soundset',
-        offset = false,
-        flash = false
-    },
-```
-* Add to ps-dispatch:locales
+## Credits
 
-```
-"solicitation": "Solicitation in Progress",
-```
+- Marfy
+- GLDNRMZ
