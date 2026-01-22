@@ -5,7 +5,31 @@ Config.PedDetectionRadius   = 50.0
 Config.TextUI               = 'ox' -- Options: 'arp', 'qb', 'ox', 'cd'
 Config.BlowjobPrice			= 500  	-- Change price for blowjob here
 Config.SexPrice				= 1000  	-- Change price for sex here
-Config.SocietyNightclub		= false -- Set to true if you want the money players pay to go into the nightclub society account
+
+Config.IsIllegal            = true -- Set to false to disable police dispatch
+Config.DispatchChance       = 50   -- Chance (1-100) to alert police if illegal
+
+function Config.Dispatch()
+    local player = PlayerPedId()
+    local coords = GetEntityCoords(player)
+    
+    -- Replace with your dispatch export
+    exports.tk_dispatch:addCall({ 
+        title = 'Suspicious Activity', 
+        code = '10-66', 
+        priority = 'Priority 2', 
+        coords = coords, 
+        showLocation = true, 
+        showGender = true, 
+        playSound = true, 
+        blip = { 
+            color = 3, 
+            sprite = 205, 
+            scale = 1.0, 
+        }, 
+        jobs = {'police'}, 
+    })
+end
 
 Config.PimpGuy = {
     { x= -909.6, y= -449.98, z= 38.61, heading = 123.94, 
