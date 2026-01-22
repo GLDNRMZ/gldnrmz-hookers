@@ -42,6 +42,9 @@ Config.TextUI = 'ox' -- Options: 'arp', 'qb', 'ox', 'cd'
 
 Config.BlowjobPrice = 500
 Config.SexPrice = 1000
+
+Config.IsIllegal = true -- Set to false to disable police dispatch
+Config.DispatchChance = 50 -- Chance (1-100) to alert police
 ```
 
 ## Usage
