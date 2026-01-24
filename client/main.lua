@@ -96,21 +96,11 @@ CreateThread(function ()
 end)
 
 -- NUI EVENTS
-RegisterNetEvent("gldnrmz-hookers:OpenPimpMenu", function()
-    lib.registerContext({
-        id = 'pimp_menu',
-        title = 'Call for Company',
-        options = {
-            {
-                title = 'Order a Hooker',
-                icon = 'female',
-                description = 'Let fate decide...',
-                event = 'gldnrmz-hookers:ChosenHookerRandom'
-            }
-        }
+RegisterNetEvent("gldnrmz-hookers:OpenPimpMenu", function(data)
+    exports.bl_dialog:showDialog({
+        ped = data.entity,
+        dialog = Config.PimpDialog
     })
-
-    lib.showContext('pimp_menu')
 end)
 
 
@@ -148,22 +138,8 @@ RegisterNetEvent("gldnrmz-hookers:chooseService", function(isBlowjob)
     lib.hideContext()
     SetNuiFocus(false, false)
     TriggerServerEvent("gldnrmz-hookers:pay", isBlowjob)
-    if math.random(1, 100) >= 10 then
-        exports.tk_dispatch:addCall({ 
-            title = 'Solicitation', 
-            code = '10-82', 
-            priority = 'Priority 2', 
-            coords = GetEntityCoords(PlayerPedId()), 
-            showLocation = true, 
-            showGender = true, 
-            playSound = true, 
-            blip = { 
-                color = 8, 
-                sprite = 279, 
-                scale = 1.0, 
-            }, 
-            jobs = {'police'}, 
-        })
+    if Config.Dispatch.Service.Enabled and math.random(1, 100) <= Config.Dispatch.Service.Chance then
+        Config.Dispatch.Service.Function()
     end
 end)
 
@@ -210,22 +186,8 @@ RegisterNUICallback("ChooseBlowjob", function (data, callback)
     -- Directly trigger the animation and then handle payment
     TriggerEvent("gldnrmz-hookers:startBlowjob")
     TriggerServerEvent("gldnrmz-hookers:pay", true)
-    if math.random(1, 100) >= 10 then
-        exports.tk_dispatch:addCall({ 
-            title = 'Solicitation', 
-            code = '10-82', 
-            priority = 'Priority 2', 
-            coords = GetEntityCoords(PlayerPedId()), 
-            showLocation = true, 
-            showGender = true, 
-            playSound = true, 
-            blip = { 
-                color = 8, 
-                sprite = 279, 
-                scale = 1.0, 
-            }, 
-            jobs = {'police'}, 
-        })
+    if Config.Dispatch.Service.Enabled and math.random(1, 100) <= Config.Dispatch.Service.Chance then
+        Config.Dispatch.Service.Function()
     end
 end)
 
@@ -238,22 +200,8 @@ RegisterNUICallback("ChooseSex", function (data, callback)
     -- Directly trigger the animation and then handle payment
     TriggerEvent("gldnrmz-hookers:startSex")
     TriggerServerEvent("gldnrmz-hookers:pay", false)
-    if math.random(1, 100) >= 10 then
-        exports.tk_dispatch:addCall({ 
-            title = 'Solicitation', 
-            code = '10-82', 
-            priority = 'Priority 2', 
-            coords = GetEntityCoords(PlayerPedId()), 
-            showLocation = true, 
-            showGender = true, 
-            playSound = true, 
-            blip = { 
-                color = 8, 
-                sprite = 279, 
-                scale = 1.0, 
-            }, 
-            jobs = {'police'}, 
-        })
+    if Config.Dispatch.Service.Enabled and math.random(1, 100) <= Config.Dispatch.Service.Chance then
+        Config.Dispatch.Service.Function()
     end
 end)
 
@@ -383,8 +331,8 @@ AddEventHandler("gldnrmz-hookers:ChosenHooker", function(model)
                                 HookerInCar = true
                                 OnRouteToHooker = false
                             
-                                if Config.IsIllegal and math.random(1, 100) <= Config.DispatchChance then
-                                    Config.Dispatch()
+                                if Config.Dispatch.Pickup.Enabled and math.random(1, 100) <= Config.Dispatch.Pickup.Chance then
+                                    Config.Dispatch.Pickup.Function()
                                 end
                             end
                             

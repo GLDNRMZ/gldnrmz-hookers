@@ -2,34 +2,99 @@ Config              		= {}
 Config.DrawDistance         = 3.0
 Config.DrawMarker         	= 10.0
 Config.PedDetectionRadius   = 50.0
-Config.TextUI               = 'ox' -- Options: 'arp', 'qb', 'ox', 'cd'
+Config.TextUI               = 'arp' -- Options: 'arp', 'qb', 'ox', 'cd'
 Config.BlowjobPrice			= 500  	-- Change price for blowjob here
 Config.SexPrice				= 1000  	-- Change price for sex here
 
-Config.IsIllegal            = true -- Set to false to disable police dispatch
-Config.DispatchChance       = 50   -- Chance (1-100) to alert police if illegal
+Config.Dispatch = {
+    Pickup = {
+        Enabled = true, -- Set to false to disable police dispatch for picking up hooker
+        Chance = 50,    -- Chance (1-100)
+        Function = function()
+            local player = PlayerPedId()
+            local coords = GetEntityCoords(player)
+            
+            -- Replace with your dispatch export
+            exports.tk_dispatch:addCall({ 
+                title = 'Suspicious Activity', 
+                code = '10-66', 
+                priority = 'Priority 2', 
+                coords = coords, 
+                showLocation = true, 
+                showGender = true, 
+                playSound = true, 
+                blip = { 
+                    color = 3, 
+                    sprite = 205, 
+                    scale = 1.0, 
+                }, 
+                jobs = {'police'}, 
+            })
+        end
+    },
+    Service = {
+        Enabled = true, -- Set to false to disable police dispatch for solicitation
+        Chance = 50,    -- Chance (1-100)
+        Function = function()
+            local player = PlayerPedId()
+            local coords = GetEntityCoords(player)
+            
+            -- Replace with your dispatch export
+            exports.tk_dispatch:addCall({ 
+                title = 'Solicitation', 
+                code = '10-82', 
+                priority = 'Priority 2', 
+                coords = coords, 
+                showLocation = true, 
+                showGender = true, 
+                playSound = true, 
+                blip = { 
+                    color = 8, 
+                    sprite = 279, 
+                    scale = 1.0, 
+                }, 
+                jobs = {'police'}, 
+            })
+        end
+    }
+}
 
-function Config.Dispatch()
-    local player = PlayerPedId()
-    local coords = GetEntityCoords(player)
-    
-    -- Replace with your dispatch export
-    exports.tk_dispatch:addCall({ 
-        title = 'Suspicious Activity', 
-        code = '10-66', 
-        priority = 'Priority 2', 
-        coords = coords, 
-        showLocation = true, 
-        showGender = true, 
-        playSound = true, 
-        blip = { 
-            color = 3, 
-            sprite = 205, 
-            scale = 1.0, 
+Config.PimpDialog = { 
+    { 
+        id = 'initial_pimp_talk', 
+        job = 'Pimp', 
+        name = 'Pimp', 
+        text = 'Hey there! Looking for some company?', 
+        buttons = { 
+            { 
+                id = 'leave1', 
+                label = 'Yeah, you got any girls working?', 
+                nextDialog = 'pimp_2', -- switch to second dialog 
+            }, 
         }, 
-        jobs = {'police'}, 
-    })
-end
+    }, 
+    { 
+        id = 'pimp_2', 
+        job = 'Pimp', 
+        name = 'Pimp', 
+        text = 'I got the best girls in town. You interested?', 
+        buttons = { 
+            { 
+                id = 'leave2', 
+                label = 'No thanks!', 
+                close = true, 
+            }, 
+            { 
+                id = 'leave2', 
+                label = 'Definitely.', 
+                close = true, 
+                onSelect = function() 
+                    TriggerEvent('gldnrmz-hookers:ChosenHookerRandom') 
+                end 
+            }, 
+        }, 
+    }, 
+}
 
 Config.PimpGuy = {
     { x= -909.6, y= -449.98, z= 38.61, heading = 123.94, 

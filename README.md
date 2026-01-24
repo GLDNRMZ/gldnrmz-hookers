@@ -43,8 +43,11 @@ Config.TextUI = 'ox' -- Options: 'arp', 'qb', 'ox', 'cd'
 Config.BlowjobPrice = 500
 Config.SexPrice = 1000
 
-Config.IsIllegal = true -- Set to false to disable police dispatch
-Config.DispatchChance = 50 -- Chance (1-100) to alert police
+-- Dispatch Configuration (See config.lua for full function examples)
+Config.Dispatch = {
+    Pickup = { Enabled = true, Chance = 50 },
+    Service = { Enabled = true, Chance = 50 }
+}
 ```
 
 ## Usage
