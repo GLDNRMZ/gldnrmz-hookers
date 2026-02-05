@@ -2,60 +2,44 @@ Config              		= {}
 Config.DrawDistance         = 3.0
 Config.DrawMarker         	= 10.0
 Config.PedDetectionRadius   = 50.0
-Config.TextUI               = 'arp' -- Options: 'arp', 'qb', 'ox', 'cd'
 Config.BlowjobPrice			= 500  	-- Change price for blowjob here
 Config.SexPrice				= 1000  	-- Change price for sex here
+Config.PaymentAccount       = 'money' -- Options: 'money' (cash) or 'bank'
+
+Config.StressRelief = {
+    Enabled = true,
+    Min = 50,
+    Max = 100
+}
 
 Config.Dispatch = {
     Pickup = {
         Enabled = true, -- Set to false to disable police dispatch for picking up hooker
         Chance = 50,    -- Chance (1-100)
-        Function = function()
-            local player = PlayerPedId()
-            local coords = GetEntityCoords(player)
-            
-            -- Replace with your dispatch export
-            exports.tk_dispatch:addCall({ 
-                title = 'Suspicious Activity', 
-                code = '10-66', 
-                priority = 'Priority 2', 
-                coords = coords, 
-                showLocation = true, 
-                showGender = true, 
-                playSound = true, 
-                blip = { 
-                    color = 3, 
-                    sprite = 205, 
-                    scale = 1.0, 
-                }, 
-                jobs = {'police'}, 
-            })
-        end
+        Alert = {
+            message = 'Suspicious Activity',
+            code = '10-66',
+            blipData = {
+                color = 3,
+                sprite = 205,
+                scale = 1.0,
+            },
+            jobs = {'police'},
+        }
     },
     Service = {
         Enabled = true, -- Set to false to disable police dispatch for solicitation
         Chance = 50,    -- Chance (1-100)
-        Function = function()
-            local player = PlayerPedId()
-            local coords = GetEntityCoords(player)
-            
-            -- Replace with your dispatch export
-            exports.tk_dispatch:addCall({ 
-                title = 'Solicitation', 
-                code = '10-82', 
-                priority = 'Priority 2', 
-                coords = coords, 
-                showLocation = true, 
-                showGender = true, 
-                playSound = true, 
-                blip = { 
-                    color = 8, 
-                    sprite = 279, 
-                    scale = 1.0, 
-                }, 
-                jobs = {'police'}, 
-            })
-        end
+        Alert = {
+            message = 'Solicitation',
+            code = '10-82',
+            blipData = {
+                color = 8,
+                sprite = 279,
+                scale = 1.0,
+            },
+            jobs = {'police'},
+        }
     }
 }
 

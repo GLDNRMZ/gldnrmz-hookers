@@ -14,6 +14,10 @@ client_scripts {
 	'config.lua'
 }
 
+dependencies {
+	'community_bridge'
+}
+
 -- Credit
 author 'Marfy, GLDNRMZ'
 version '1.0.0'

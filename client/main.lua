@@ -11,70 +11,30 @@ local Keys = {
     ["H"] = 74
 }
 
--- Modern QBCore initialization
-local QBCore = exports['qb-core']:GetCoreObject()
-local PlayerData = QBCore.Functions.GetPlayerData()
-
+local Bridge = exports['community_bridge']:Bridge()
+local Target = Bridge.Target
+local Menu = Bridge.Menu
+local Notify = Bridge.Notify
+local HelpText = Bridge.HelpText
+local ProgressBar = Bridge.ProgressBar
+local Dispatch = Bridge.Dispatch
 local function DrawTextUI(options)
-    if Config.TextUI == 'arp' then
-        if type(options) == 'table' then
-            for _, opt in ipairs(options) do
-                exports['arp_ui']:Show(opt.key, opt.text)
-            end
+    local text = ""
+    if type(options) == 'table' then
+        for _, opt in ipairs(options) do
+            text = text .. "[" .. opt.key .. "] " .. opt.text .. "  "
         end
     else
-        local text = ""
-        if type(options) == 'table' then
-            for _, opt in ipairs(options) do
-                text = text .. "[" .. opt.key .. "] " .. opt.text .. "  "
-            end
-        else
-            text = options
-        end
-        
-        if Config.TextUI == 'qb' then
-            exports['qb-core']:DrawText(text, 'left')
-        elseif Config.TextUI == 'ox' then
-            lib.showTextUI(text)
-        elseif Config.TextUI == 'cd' then
-            exports['cd_drawtextui']:ShowNotification(text)
-        end
+        text = options
     end
+
+    HelpText.ShowHelpText(text, 'left')
 end
 
 local function HideTextUI()
-    if Config.TextUI == 'arp' then
-        exports['arp_ui']:Hide()
-    elseif Config.TextUI == 'qb' then
-        exports['qb-core']:HideText()
-    elseif Config.TextUI == 'ox' then
-        lib.hideTextUI()
-    elseif Config.TextUI == 'cd' then
-        exports['cd_drawtextui']:HideNotification()
-    end
+    HelpText.HideHelpText()
 end
 
-
-
--- Main initialization
-CreateThread(function()
-    while not QBCore.Functions.GetPlayerData() do
-        Wait(100)
-    end
-    
-    PlayerData = QBCore.Functions.GetPlayerData()
-end)
-
-RegisterNetEvent('QBCore:Client:OnJobUpdate')
-AddEventHandler('QBCore:Client:OnJobUpdate', function(job)
-    PlayerData = QBCore.Functions.GetPlayerData()
-    PlayerData.job = job
-end)
-
-RegisterNetEvent('QBCore:Client:OnPlayerLoaded')
-AddEventHandler('QBCore:Client:OnPlayerLoaded', function (Player)
-    PlayerData = Player
-end)
 
 -- Main Thread - Optimized with proper wait times
 CreateThread(function ()
@@ -106,52 +66,51 @@ end)
 
 
 RegisterNetEvent("gldnrmz-hookers:OpenHookerMenu", function()
-    lib.registerContext({
-        id = 'hooker_service_menu',
+    Menu.Open({
         title = 'Select Service',
         options = {
             {
                 title = 'Blowjob - $' .. Config.BlowjobPrice,
                 icon = 'lips',
-                event = 'gldnrmz-hookers:chooseService',
-                args = true -- blowjob
+                onSelect = function()
+                    TriggerEvent('gldnrmz-hookers:chooseService', true)
+                end
             },
             {
                 title = 'Full Service - $' .. Config.SexPrice,
                 icon = 'bed',
-                event = 'gldnrmz-hookers:chooseService',
-                args = false -- sex
+                onSelect = function()
+                    TriggerEvent('gldnrmz-hookers:chooseService', false)
+                end
             },
             {
                 title = 'Nevermind',
                 icon = 'circle-xmark',
-                event = 'gldnrmz-hookers:cancelService'
+                onSelect = function()
+                    TriggerEvent('gldnrmz-hookers:cancelService')
+                end
             }
         }
     })
-
-    lib.showContext('hooker_service_menu')
 end)
 
 RegisterNetEvent("gldnrmz-hookers:chooseService", function(isBlowjob)
     HookerInCar = false
-    lib.hideContext()
     SetNuiFocus(false, false)
     TriggerServerEvent("gldnrmz-hookers:pay", isBlowjob)
     if Config.Dispatch.Service.Enabled and math.random(1, 100) <= Config.Dispatch.Service.Chance then
-        Config.Dispatch.Service.Function()
+        Dispatch.SendAlert(Config.Dispatch.Service.Alert or {})
     end
 end)
 
 RegisterNetEvent("gldnrmz-hookers:cancelService", function()
     HookerInCar = true
-    lib.hideContext()
     SetNuiFocus(false, false)
 end)
 
 RegisterNetEvent("gldnrmz-hookers:ChosenHookerRandom", function()
     if HookerSpawned then
-        QBCore.Functions.Notify('You have already chosen a hooker!', 'error')
+        Notify.SendNotify('You have already chosen a hooker!', 'error', 3000)
         return
     end
 
@@ -170,7 +129,7 @@ RegisterNetEvent("gldnrmz-hookers:ChosenHookerRandom", function()
     }
 
     local chosen = hookerOptions[math.random(1, #hookerOptions)]
-    QBCore.Functions.Notify(chosen.name .. ' is marked on your GPS, go & enjoy!', 'primary')
+    Notify.SendNotify(chosen.name .. ' is marked on your GPS, go & enjoy!', 'success', 3000)
     OnRouteToHooker = true
 
     TriggerEvent("gldnrmz-hookers:ChosenHooker", chosen.model)
@@ -187,7 +146,7 @@ RegisterNUICallback("ChooseBlowjob", function (data, callback)
     TriggerEvent("gldnrmz-hookers:startBlowjob")
     TriggerServerEvent("gldnrmz-hookers:pay", true)
     if Config.Dispatch.Service.Enabled and math.random(1, 100) <= Config.Dispatch.Service.Chance then
-        Config.Dispatch.Service.Function()
+        Dispatch.SendAlert(Config.Dispatch.Service.Alert or {})
     end
 end)
 
@@ -201,7 +160,7 @@ RegisterNUICallback("ChooseSex", function (data, callback)
     TriggerEvent("gldnrmz-hookers:startSex")
     TriggerServerEvent("gldnrmz-hookers:pay", false)
     if Config.Dispatch.Service.Enabled and math.random(1, 100) <= Config.Dispatch.Service.Chance then
-        Config.Dispatch.Service.Function()
+        Dispatch.SendAlert(Config.Dispatch.Service.Alert or {})
     end
 end)
 
@@ -252,13 +211,15 @@ CreateThread(function()
         loadAnimDict("mini@strip_club@idles@bouncer@base")        
         TaskPlayAnim(pimp, "mini@strip_club@idles@bouncer@base", "base", 8.0, 1.0, -1, 01, 0, 0, 0, 0)
 
-        exports.ox_target:addLocalEntity(pimp, {
+        Target.AddLocalEntity(pimp, {
             {
                 name = 'talk_to_pimp',
-                event = 'gldnrmz-hookers:OpenPimpMenu',
                 icon = 'fa-solid fa-money-bill',
                 label = 'Talk to Pimp',
-                distance = 1.5
+                distance = 1.5,
+                onSelect = function(entity)
+                    TriggerEvent('gldnrmz-hookers:OpenPimpMenu', { entity = entity })
+                end
             }
         })
     end
@@ -293,7 +254,7 @@ end
 RegisterNetEvent("gldnrmz-hookers:ChosenHooker")
 AddEventHandler("gldnrmz-hookers:ChosenHooker", function(model)
     if HookerSpawned then
-        QBCore.Functions.Notify('You have allready chosen a hooker!', 'error')
+        Notify.SendNotify('You have allready chosen a hooker!', 'error', 3000)
         
     else
         HookerSpawned = true
@@ -332,7 +293,7 @@ AddEventHandler("gldnrmz-hookers:ChosenHooker", function(model)
                                 OnRouteToHooker = false
                             
                                 if Config.Dispatch.Pickup.Enabled and math.random(1, 100) <= Config.Dispatch.Pickup.Chance then
-                                    Config.Dispatch.Pickup.Function()
+                                    Dispatch.SendAlert(Config.Dispatch.Pickup.Alert or {})
                                 end
                             end
                             
@@ -377,7 +338,7 @@ AddEventHandler("gldnrmz-hookers:ChosenHooker", function(model)
                                     PlayAmbientSpeech1(Hooker, "Hooker_Offer_Service", "Speech_Params_Force_Shouted_Clear")
                                     TriggerEvent("gldnrmz-hookers:OpenHookerMenu")
                                 else
-                                    QBCore.Functions.Notify('Too many people around!', 'error')
+                                    Notify.SendNotify('Too many people around!', 'error', 3000)
                                 end
                             elseif IsControlJustPressed(0, Keys["H"]) then
                                 HideTextUI()
@@ -499,17 +460,26 @@ RegisterNetEvent('gldnrmz-hookers:startBlowjob', function()
     hookerAnim(Hooker,"oddjobs@towing","f_blow_job_loop")
     playerAnim(ped,"oddjobs@towing","m_blow_job_loop")
 
-    QBCore.Functions.Progressbar("bj_with_hooker", "Enjoying the moment...", 7500, true, true, {
-        disableMovement = false,
-        disableCarMovement = true,
-        disableMouse = false,
-        disableCombat = true,
-    }, {}, {}, {}, function() -- Done
+    if ProgressBar.Open({
+        name = "bj_with_hooker",
+        duration = 7500,
+        label = "Enjoying the moment...",
+        useWhileDead = true,
+        canCancel = true,
+        controlDisables = {
+            disableMovement = false,
+            disableCarMovement = true,
+            disableMouse = false,
+            disableCombat = true,
+        }
+    }, nil, true) then
         ClearPedTasks(ped)
         ClearPedTasks(Hooker)
         HookerInCar = true
-        TriggerServerEvent('hud:server:RelieveStress', math.random(50, 100))
-    end)
+        if Config.StressRelief and Config.StressRelief.Enabled then
+            TriggerServerEvent('gldnrmz-hookers:relieveStress', math.random(Config.StressRelief.Min, Config.StressRelief.Max))
+        end
+    end
 end)
 
 RegisterNetEvent('gldnrmz-hookers:startSex', function()
@@ -537,17 +507,26 @@ RegisterNetEvent('gldnrmz-hookers:startSex', function()
     hookerAnim(Hooker,"mini@prostitutes@sexlow_veh","low_car_sex_loop_female")
     playerAnim(ped,"mini@prostitutes@sexlow_veh","low_car_sex_loop_player")
 
-    QBCore.Functions.Progressbar("sex_with_hooker", "Enjoying the moment...", 7500, true, true, {
-        disableMovement = false,
-        disableCarMovement = true,
-        disableMouse = false,
-        disableCombat = true,
-    }, {}, {}, {}, function() -- Done
+    if ProgressBar.Open({
+        name = "sex_with_hooker",
+        duration = 7500,
+        label = "Enjoying the moment...",
+        useWhileDead = true,
+        canCancel = true,
+        controlDisables = {
+            disableMovement = false,
+            disableCarMovement = true,
+            disableMouse = false,
+            disableCombat = true,
+        }
+    }, nil, true) then
         ClearPedTasks(ped)
         ClearPedTasks(Hooker)
         HookerInCar = true
-        TriggerServerEvent('hud:server:RelieveStress', math.random(50, 100))
-    end)
+        if Config.StressRelief and Config.StressRelief.Enabled then
+            TriggerServerEvent('gldnrmz-hookers:relieveStress', math.random(Config.StressRelief.Min, Config.StressRelief.Max))
+        end
+    end
 end)
 
 -- Animation on Hooker
