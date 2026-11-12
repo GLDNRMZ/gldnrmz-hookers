@@ -1,64 +1,48 @@
 # gldnrmz-hookers
 
-A QBCore script for GTA V Roleplay that adds immersive hooker interactions. Players can visit a Pimp to find a hooker, pick them up, and engage in services within a vehicle.
+Pimp NPC, hooker pickups and in-vehicle services for FiveM, built on [community_bridge](https://github.com/The-Order-Of-The-Sacred-Framework/community_bridge) so it works with Qbox, QBCore and ESX.
 
 ## Features
 
-- **Pimp NPC**: Locate a Pimp to get a random hooker location.
-- **Dynamic Spawning**: Hookers spawn at configurable locations.
-- **Vehicle Interaction**: Services (Blowjob, Sex) are only available when in a vehicle.
-- **Privacy Check**: Integrated ped detection ensures you are in a private area before services can be offered (configurable radius).
-- **Animations**: synced animations for both player and hooker.
-- **Stress Relief**: Services relieve stress.
-- **Configurable UI**: Support for multiple TextUI systems (`arp`, `qb`, `ox`, `cd`).
-- **Dispatch Integration**: Chance to alert police of solicitation.
+- **Pimp NPC** with a [bl_dialog](https://github.com/Byte-Labs-Studio/bl_dialog) conversation. The ped only exists while a player is nearby.
+- **Server-picked hooker and location**, marked with a blip and GPS waypoint. She leaves if you don't pick her up in time.
+- **Pickup**: drive up as the driver with the passenger seat free and honk.
+- **Privacy check**: services are blocked while anyone else is within `Config.PedDetectionRadius`.
+- **Services** are defined in config (price, duration, animations), so you can add your own.
+- **Rebindable keys** (Settings > Key Bindings > FiveM).
+- **Stress relief** and **dispatch alerts** through community_bridge.
+- **Server-validated**: the server checks she is in your car before charging you, picks the stress amount itself, enforces a cooldown, and deletes her if you disconnect.
 
 ## Dependencies
 
-- [qb-core](https://github.com/qbcore-framework/qb-core)
+- OneSync
 - [ox_lib](https://github.com/overextended/ox_lib)
-- [ox_target](https://github.com/overextended/ox_target)
-- [hud](https://github.com/qbcore-framework/hud) (for stress relief)
-
-### Optional
-- [cd_drawtextui](https://github.com/Codesign-Scripts/cd_drawtextui)
-- [tk_dispatch](https://github.com/Tiago-Kyle/tk_dispatch)
+- [community_bridge](https://github.com/The-Order-Of-The-Sacred-Framework/community_bridge) (framework, target, menu, notify, help text, progress bar, dispatch)
+- [bl_dialog](https://github.com/Byte-Labs-Studio/bl_dialog)
 
 ## Installation
 
-1. Download the resource and place it in your resources folder.
-2. Add `ensure gldnrmz-hookers` to your `server.cfg`.
-3. Configure `config.lua` to your liking.
-
-## Configuration
-
-Edit `config.lua` to adjust settings:
-
-```lua
-Config.DrawDistance = 3.0
-Config.DrawMarker = 10.0
-Config.PedDetectionRadius = 50.0 -- Radius to check for nearby peds (privacy check)
-Config.TextUI = 'ox' -- Options: 'arp', 'qb', 'ox', 'cd'
-
-Config.BlowjobPrice = 500
-Config.SexPrice = 1000
-
--- Dispatch Configuration (See config.lua for full function examples)
-Config.Dispatch = {
-    Pickup = { Enabled = true, Chance = 50 },
-    Service = { Enabled = true, Chance = 50 }
-}
-```
+1. Place the resource in your resources folder.
+2. Make sure it starts after its dependencies, e.g. `ensure gldnrmz-hookers`.
+3. Adjust `config.lua`. Text lives in `locales/en.json`.
 
 ## Usage
 
-1. Go to the Pimp (location on map/config).
-2. Talk to the Pimp to mark a hooker on your GPS.
-3. Drive to the location and honk your horn to pick her up.
-4. Drive to a secluded spot (ensure no peds are within `Config.PedDetectionRadius`).
-5. Stop the car.
-   - Press **[H]** to tell her to leave (Always available).
-   - Press **[E]** to open services menu (Only available if area is private).
+1. Talk to the Pimp and accept.
+2. Drive to the GPS marker. As the driver, with the front passenger seat free, press **E** to honk.
+3. Once she's in, stop somewhere quiet.
+   - **E**: open the services menu (only when nobody is around)
+   - **H**: tell her to leave
+4. Getting out of the car also sends her away.
+
+## Upgrading from 1.x
+
+- `Config.BlowjobPrice` / `Config.SexPrice` moved into `Config.Services`.
+- `Config.PimpGuy` / `Config.Zones` became `Config.Pimp`.
+- `Config.Hookerspawns` was renamed to `Config.HookerSpawns`; the hooker list moved to `Config.Hookers`.
+- `Config.DrawDistance` / `Config.DrawMarker` became `Config.PickupDistance`.
+- The pimp dialog's accept button now needs `id = 'accept'` instead of an `onSelect`.
+- The old net events (`gldnrmz-hookers:pay`, `:relieveStress`, `:syncAnimation`, etc.) were removed.
 
 ## Credits
 

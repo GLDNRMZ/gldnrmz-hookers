@@ -1,23 +1,29 @@
 fx_version 'cerulean'
-lua54 'yes'
 game 'gta5'
+lua54 'yes'
 
-shared_script '@ox_lib/init.lua'
+name 'gldnrmz-hookers'
+author 'Marfy, GLDNRMZ'
+description 'Pimp NPC, hooker pickups and in-vehicle services'
+version '2.0.0'
 
-server_scripts {
-	'server/main.lua',
-	'config.lua'
+ox_lib 'locale'
+
+shared_scripts {
+    '@ox_lib/init.lua',
+    'config.lua',
 }
 
-client_scripts {
-	'client/main.lua',
-	'config.lua'
+client_script 'client/main.lua'
+server_script 'server/main.lua'
+
+files {
+    'locales/*.json',
 }
 
 dependencies {
-	'community_bridge'
+    '/onesync',
+    'ox_lib',
+    'community_bridge',
+    'bl_dialog',
 }
-
--- Credit
-author 'Marfy, GLDNRMZ'
-version '1.0.0'

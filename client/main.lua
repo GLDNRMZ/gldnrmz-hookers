@@ -1,16 +1,3 @@
--- Modern key mapping using ox_lib
-local spawn = 0
-local HookerSpawned = false
-local OnRouteToHooker = false
-local HookerInCar = false
-local Hooker = nil
-
--- Define Keys for controls
-local Keys = {
-    ["E"] = 38,
-    ["H"] = 74
-}
-
 local Bridge = exports['community_bridge']:Bridge()
 local Target = Bridge.Target
 local Menu = Bridge.Menu
@@ -18,603 +5,492 @@ local Notify = Bridge.Notify
 local HelpText = Bridge.HelpText
 local ProgressBar = Bridge.ProgressBar
 local Dispatch = Bridge.Dispatch
-local function DrawTextUI(options)
-    local text = ""
-    if type(options) == 'table' then
-        for _, opt in ipairs(options) do
-            text = text .. "[" .. opt.key .. "] " .. opt.text .. "  "
-        end
+
+local RESOURCE = GetCurrentResourceName()
+
+---@class ActiveHooker
+---@field ped integer
+---@field blip integer?
+---@field name string
+---@field voice string?
+---@field state 'waiting'|'boarding'|'ready'|'busy'
+---@field expiresAt integer
+
+---@type ActiveHooker?
+local hooker = nil
+
+---@type table<integer, true> dismissed peds still finishing their line
+local releasing = {}
+
+---------------------------------------------------------------------
+-- Helpers
+---------------------------------------------------------------------
+local function dbg(...)
+    if Config.Debug then print(('^5[%s]^7'):format(RESOURCE), ...) end
+end
+
+local function notify(key, kind, ...)
+    Notify.SendNotify(locale(key, ...), kind or 'inform', 3000)
+end
+
+local function rollDispatch(cfg)
+    if cfg.Enabled and math.random(100) <= cfg.Chance then
+        Dispatch.SendAlert(cfg.Alert)
+    end
+end
+
+local function ensureControl(entity)
+    if NetworkHasControlOfEntity(entity) then return true end
+    NetworkRequestControlOfEntity(entity)
+    return pcall(lib.waitFor, function()
+        return NetworkHasControlOfEntity(entity) or nil
+    end, nil, 1000)
+end
+
+local function playAnim(ped, dict, clip)
+    if not DoesEntityExist(ped) or IsEntityDead(ped) then return false end
+    if not pcall(lib.requestAnimDict, dict) then return false end
+    TaskPlayAnim(ped, dict, clip, 8.0, -8.0, -1, 1, 0, false, false, false)
+    return true
+end
+
+---@param voice string? force a specific voice (for models without hooker lines)
+local function speak(ped, line, params, voice)
+    if not DoesEntityExist(ped) then return end
+    if voice then
+        PlayPedAmbientSpeechWithVoiceNative(ped, line, voice, params, false)
     else
-        text = options
+        PlayPedAmbientSpeechNative(ped, line, params, 0)
     end
-
-    HelpText.ShowHelpText(text, 'left')
-end
-
-local function HideTextUI()
-    HelpText.HideHelpText()
-end
-
-
--- Main Thread - Optimized with proper wait times
-CreateThread(function ()
-    while true do
-        -- Only check frequently when actively looking for a hooker
-        local waitTime = 1000
-        local coords = GetEntityCoords(PlayerPedId())
-        local letSleep = true
-        
-        for k,v in pairs(Config.Zones) do
-            if #(coords - vector3(v.Pos.x, v.Pos.y, v.Pos.z)) < Config.DrawDistance and k == 'Pimp' then
-                letSleep = false
-                waitTime = 5
-            end
-        end
-        
-        Wait(waitTime)
-    end
-end)
-
--- NUI EVENTS
-RegisterNetEvent("gldnrmz-hookers:OpenPimpMenu", function(data)
-    exports.bl_dialog:showDialog({
-        ped = data.entity,
-        dialog = Config.PimpDialog
-    })
-end)
-
-
-
-RegisterNetEvent("gldnrmz-hookers:OpenHookerMenu", function()
-    Menu.Open({
-        title = 'Select Service',
-        options = {
-            {
-                title = 'Blowjob - $' .. Config.BlowjobPrice,
-                icon = 'lips',
-                onSelect = function()
-                    TriggerEvent('gldnrmz-hookers:chooseService', true)
-                end
-            },
-            {
-                title = 'Full Service - $' .. Config.SexPrice,
-                icon = 'bed',
-                onSelect = function()
-                    TriggerEvent('gldnrmz-hookers:chooseService', false)
-                end
-            },
-            {
-                title = 'Nevermind',
-                icon = 'circle-xmark',
-                onSelect = function()
-                    TriggerEvent('gldnrmz-hookers:cancelService')
-                end
-            }
-        }
-    })
-end)
-
-RegisterNetEvent("gldnrmz-hookers:chooseService", function(isBlowjob)
-    HookerInCar = false
-    SetNuiFocus(false, false)
-    TriggerServerEvent("gldnrmz-hookers:pay", isBlowjob)
-    if Config.Dispatch.Service.Enabled and math.random(1, 100) <= Config.Dispatch.Service.Chance then
-        Dispatch.SendAlert(Config.Dispatch.Service.Alert or {})
-    end
-end)
-
-RegisterNetEvent("gldnrmz-hookers:cancelService", function()
-    HookerInCar = true
-    SetNuiFocus(false, false)
-end)
-
-RegisterNetEvent("gldnrmz-hookers:ChosenHookerRandom", function()
-    if HookerSpawned then
-        Notify.SendNotify('You have already chosen a hooker!', 'error', 3000)
-        return
-    end
-
-    -- Random models and names
-    local hookerOptions = {
-        { model = "s_f_y_hooker_01", name = "Tanisha" },
-        { model = "s_f_y_hooker_02", name = "Rebecca" },
-        { model = "s_f_y_hooker_03", name = "Starr" },
-        { model = "s_f_y_hooker_02", name = "Diamond" },
-        { model = "CSB_CallGirl_02", name = "Princess" },
-        { model = "IG_Fooliganz_02", name = "Tiffanni" },
-        { model = "IG_Fooliganz_01", name = "Ashleylynn" },
-        { model = "G_F_M_Fooliganz_01", name = "Kimberleigh" },
-        
-
-    }
-
-    local chosen = hookerOptions[math.random(1, #hookerOptions)]
-    Notify.SendNotify(chosen.name .. ' is marked on your GPS, go & enjoy!', 'success', 3000)
-    OnRouteToHooker = true
-
-    TriggerEvent("gldnrmz-hookers:ChosenHooker", chosen.model)
-end)
-
-
-RegisterNUICallback("ChooseBlowjob", function (data, callback)
-    SetNuiFocus(false, false)
-    callback("ok")
-    HookerInCar = false
-    
-    print("^2[DEBUG]^7: ChooseBlowjob callback triggered")
-    -- Directly trigger the animation and then handle payment
-    TriggerEvent("gldnrmz-hookers:startBlowjob")
-    TriggerServerEvent("gldnrmz-hookers:pay", true)
-    if Config.Dispatch.Service.Enabled and math.random(1, 100) <= Config.Dispatch.Service.Chance then
-        Dispatch.SendAlert(Config.Dispatch.Service.Alert or {})
-    end
-end)
-
-RegisterNUICallback("ChooseSex", function (data, callback)
-    SetNuiFocus(false, false)
-    callback("ok")
-    HookerInCar = false
-    
-    print("^2[DEBUG]^7: ChooseSex callback triggered")
-    -- Directly trigger the animation and then handle payment
-    TriggerEvent("gldnrmz-hookers:startSex")
-    TriggerServerEvent("gldnrmz-hookers:pay", false)
-    if Config.Dispatch.Service.Enabled and math.random(1, 100) <= Config.Dispatch.Service.Chance then
-        Dispatch.SendAlert(Config.Dispatch.Service.Alert or {})
-    end
-end)
-
-RegisterNUICallback("CloseServiceMenu", function (data, callback)
-    SetNuiFocus(false, false)
-    callback("ok")
-    HookerInCar = true
-end)
-
--- No Money 
-RegisterNetEvent("gldnrmz-hookers:noMoney")
-AddEventHandler("gldnrmz-hookers:noMoney", function()
-    HookerInCar = true
-end)
-
--- DrawText Function
-function DrawText3Ds(x, y, z, text)
-    local onScreen,_x,_y=World3dToScreen2d(x,y,z)
-    local px,py,pz=table.unpack(GetGameplayCamCoords())
-    
-    SetTextScale(0.35, 0.35)
-    SetTextFont(4)
-    SetTextProportional(1)
-    SetTextColour(255, 255, 255, 215)
-    SetTextEntry("STRING")
-    SetTextCentre(1)
-    AddTextComponentString(text)
-    DrawText(_x,_y)
-    local factor = (string.len(text)) / 370
-    DrawRect(_x,_y+0.0125, 0.015+ factor, 0.03, 41, 11, 41, 68)
-end
-
--- Pimp ped
-function loadAnimDict(dict) while (not HasAnimDictLoaded(dict)) do RequestAnimDict(dict) Wait(0) end end
-
--- Initialize pimps when resource starts
-CreateThread(function()
-    for _,v in pairs(Config.PimpGuy) do
-        loadmodel(v.model)
-        loaddict("mini@strip_club@idles@bouncer@base")
-
-        pimp =  CreatePed(1, v.model, v.x, v.y, v.z, v.heading, false, true)
-        SetEntityAsMissionEntity(pimp)
-        SetPedFleeAttributes(pimp, 0, 0)
-        SetBlockingOfNonTemporaryEvents(pimp, true)
-        SetEntityInvincible(pimp, true)
-        FreezeEntityPosition(pimp, true)
-        loadAnimDict("mini@strip_club@idles@bouncer@base")        
-        TaskPlayAnim(pimp, "mini@strip_club@idles@bouncer@base", "base", 8.0, 1.0, -1, 01, 0, 0, 0, 0)
-
-        Target.AddLocalEntity(pimp, {
-            {
-                name = 'talk_to_pimp',
-                icon = 'fa-solid fa-money-bill',
-                label = 'Talk to Pimp',
-                distance = 1.5,
-                onSelect = function(entity)
-                    TriggerEvent('gldnrmz-hookers:OpenPimpMenu', { entity = entity })
-                end
-            }
-        })
-    end
-end)
-
--- Create Hooker,  Setwaypoint and Blip
-function CreateHooker(model)
-    spawn = math.random(1, #Config.Hookerspawns) -- safer than hardcoded 12
-
-    local location = Config.Hookerspawns[spawn]
-    if not location then
-        print("^1[Hooker Error]^7: Invalid spawn index selected (" .. tostring(spawn) .. ")")
-        return
-    end
-
-    loadmodel(model)
-    loaddict("switch@michael@parkbench_smoke_ranger")
-
-    Hooker = CreatePed("PED_TYPE_PROSTITUTE", model, location.x, location.y, location.z, location.w, true, true)
-    FreezeEntityPosition(Hooker, true)
-    SetEntityInvincible(Hooker, true)
-    SetBlockingOfNonTemporaryEvents(Hooker, true)
-    TaskStartScenarioInPlace(Hooker, "WORLD_HUMAN_SMOKING", 0, false)
-
-    HookerBlip = AddBlipForCoord(location.x, location.y, location.z)
-    SetBlipSprite(HookerBlip, 280)
-    SetNewWaypoint(location.x, location.y)
-end
-
-
--- Thread after ordered hooker 
-RegisterNetEvent("gldnrmz-hookers:ChosenHooker")
-AddEventHandler("gldnrmz-hookers:ChosenHooker", function(model)
-    if HookerSpawned then
-        Notify.SendNotify('You have allready chosen a hooker!', 'error', 3000)
-        
-    else
-        HookerSpawned = true
-        CreateHooker(model)
-        Citizen.CreateThread(function()
-            local textShown = false
-            local lastPedsNearby = nil
-
-            while true do
-                Wait(5)
-                local Coords, letSleep = GetEntityCoords(PlayerPedId()), true
-        
-                if OnRouteToHooker and DoesEntityExist(Hooker) then
-                    local hookerCoords = GetEntityCoords(Hooker)
-                    local distance = #(Coords - hookerCoords)
-        
-                    if distance < Config.DrawMarker then
-                        letSleep = false
-                        local ped = GetPlayerPed(PlayerId())
-                        local vehicle = GetVehiclePedIsIn(ped, false)
-        
-                        if GetPedInVehicleSeat(vehicle, -1) and IsPedInVehicle(ped, vehicle, true) and IsVehicleSeatFree(vehicle, 0) and not IsVehicleSeatFree(vehicle, -1) then
-                            if not textShown then
-                                DrawTextUI({{key = 'E', text = 'Honk Horn'}})
-                                textShown = true
-                            end
-        
-                            if IsControlJustPressed(0, Keys["E"]) then
-                                HideTextUI()
-                                textShown = false
-                                TriggerEvent('animations:client:EmoteCommandStart', {"whistle"})
-                                RemoveBlip(HookerBlip)
-                                signalHooker()
-                                PlayAmbientSpeech1(Hooker, "Generic_Hows_It_Going", "Speech_Params_Force")
-                                HookerInCar = true
-                                OnRouteToHooker = false
-                            
-                                if Config.Dispatch.Pickup.Enabled and math.random(1, 100) <= Config.Dispatch.Pickup.Chance then
-                                    Dispatch.SendAlert(Config.Dispatch.Pickup.Alert or {})
-                                end
-                            end
-                            
-                        end
-                    else
-                        if textShown then
-                            HideTextUI()
-                            textShown = false
-                        end
-                    end
-                end
-        
-                if HookerInCar then
-                    local ped = GetPlayerPed(PlayerId())
-                    local vehicle = GetVehiclePedIsIn(ped, false)
-        
-                    if GetPedInVehicleSeat(vehicle, -1) and IsPedInVehicle(ped, vehicle, true) and not IsVehicleSeatFree(vehicle, 0) and not IsVehicleSeatFree(vehicle, -1) then
-                        letSleep = false
-        
-                        if IsVehicleStopped(vehicle) then
-                            local pedsNearby = ArePedsNearby()
-
-                            if not textShown or (lastPedsNearby ~= pedsNearby) then
-                                if textShown then
-                                    HideTextUI()
-                                end
-
-                                local prompts = {{key = 'H', text = 'To tell her to leave'}}
-                                if not pedsNearby then
-                                    table.insert(prompts, {key = 'E', text = 'To open Services'})
-                                end
-                                DrawTextUI(prompts)
-
-                                textShown = true
-                                lastPedsNearby = pedsNearby
-                            end
-            
-                            if IsControlJustPressed(0, Keys["E"]) then
-                                if not pedsNearby then
-                                    HideTextUI()
-                                    textShown = false
-                                    PlayAmbientSpeech1(Hooker, "Hooker_Offer_Service", "Speech_Params_Force_Shouted_Clear")
-                                    TriggerEvent("gldnrmz-hookers:OpenHookerMenu")
-                                else
-                                    Notify.SendNotify('Too many people around!', 'error', 3000)
-                                end
-                            elseif IsControlJustPressed(0, Keys["H"]) then
-                                HideTextUI()
-                                textShown = false
-                                HookerInCar = false
-                                PlayAmbientSpeech1(Hooker, "Hooker_Had_Enough", "Speech_Params_Force_Shouted_Clear")
-                                hookerGoHome()
-                                break
-                            end
-                        else
-                            if textShown then
-                                HideTextUI()
-                                textShown = false
-                            end
-                        end
-                    end
-                end
-        
-                if letSleep then
-                    if textShown then
-                        HideTextUI()
-                        textShown = false
-                    end
-                    Wait(1000)
-                end
-            end
+    if Config.Debug then
+        SetTimeout(500, function()
+            dbg(('speech %s on %s: %s'):format(line, ped, IsAnySpeechPlaying(ped) and 'playing' or 'NOT playing'))
         end)
-        
-    end   
-end)
-
--- Send Hooker Home
-function hookerGoHome()
-    local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
-    TaskLeaveVehicle(Hooker, vehicle, 0)
-    SetPedAsNoLongerNeeded(Hooker)
-    HookerSpawned = false
-    HookerInCar = false  -- Add this line to ensure the flag is reset
-    if textShown then    -- Add this block to ensure UI is hidden
-        HideTextUI()
-        textShown = false
     end
 end
 
--- Signal Hooker to Enter Vehicle 
-function signalHooker()
-    local ped = PlayerPedId()
-    local vehicle = GetVehiclePedIsIn(ped, false)
+-- Anyone (human, alive, not in our car) within the privacy radius?
+local function arePedsNearby()
+    local player = cache.ped
+    local origin = GetEntityCoords(player)
+    local radius = Config.PedDetectionRadius
+    local vehicle = cache.vehicle
+    local ignore = hooker and hooker.ped
 
-    if not Hooker then
-        --print("[ERROR] Hooker ped is nil!")
-        return
-    end
-
-    SetEntityAsMissionEntity(Hooker, true, true)
-    ClearPedTasksImmediately(Hooker)
-    FreezeEntityPosition(Hooker, false)
-
-    -- Make sure the ped is close enough to the vehicle
-    local pedCoords = GetEntityCoords(Hooker)
-    local vehCoords = GetEntityCoords(vehicle)
-    local dist = #(pedCoords - vehCoords)
-    
-    if dist > 10.0 then
-        -- Only move closer if too far away
-        local coords = GetOffsetFromEntityInWorldCoords(vehicle, 1.5, 0.0, 0.0)
-        SetEntityCoords(Hooker, coords.x, coords.y, coords.z, false, false, false, true)
-    end
-
-    -- Use proper enter vehicle task with longer timeout
-    TaskEnterVehicle(Hooker, vehicle, -1, 0, 1.0, 1, 0)
-    
-    -- Only use warp as a fallback after a longer wait time
-    CreateThread(function()
-        local timeout = 0
-        local maxTimeout = 15 -- 15 seconds max wait time
-        
-        while timeout < maxTimeout do
-            Wait(1000)
-            timeout = timeout + 1
-            
-            if IsPedInVehicle(Hooker, vehicle, false) then
-                return -- Successfully entered vehicle naturally
-            end
-        end
-        
-        -- Only as last resort after 15 seconds
-        if not IsPedInVehicle(Hooker, vehicle, false) then
-            --print("[FALLBACK] Hooker couldn't enter vehicle naturally after 15 seconds")
-            TaskWarpPedIntoVehicle(Hooker, vehicle, 0)
-        end
-    end)
-end
-
-
--- Blowjob Animation and Speech
-RegisterNetEvent('gldnrmz-hookers:startBlowjob', function()
-    local ped = PlayerPedId()
-    
-    print("^2[DEBUG]^7: startBlowjob event triggered")
-    
-    -- Create a temporary hooker if needed
-    if not Hooker or not DoesEntityExist(Hooker) then
-        print("^3[WARNING]^7: Hooker entity not found, creating temporary one")
-        local playerCoords = GetEntityCoords(ped)
-        local model = GetHashKey("s_f_y_hooker_01")
-        
-        RequestModel(model)
-        while not HasModelLoaded(model) do
-            Wait(1)
-        end
-        
-        Hooker = CreatePed(4, model, playerCoords.x, playerCoords.y, playerCoords.z, 0.0, true, true)
-        SetEntityAsMissionEntity(Hooker, true, true)
-        SetBlockingOfNonTemporaryEvents(Hooker, true)
-    end
-    
-    print("^2[DEBUG]^7: Playing animations")
-    hookerAnim(Hooker,"oddjobs@towing","f_blow_job_loop")
-    playerAnim(ped,"oddjobs@towing","m_blow_job_loop")
-
-    if ProgressBar.Open({
-        name = "bj_with_hooker",
-        duration = 7500,
-        label = "Enjoying the moment...",
-        useWhileDead = true,
-        canCancel = true,
-        controlDisables = {
-            disableMovement = false,
-            disableCarMovement = true,
-            disableMouse = false,
-            disableCombat = true,
-        }
-    }, nil, true) then
-        ClearPedTasks(ped)
-        ClearPedTasks(Hooker)
-        HookerInCar = true
-        if Config.StressRelief and Config.StressRelief.Enabled then
-            TriggerServerEvent('gldnrmz-hookers:relieveStress', math.random(Config.StressRelief.Min, Config.StressRelief.Max))
-        end
-    end
-end)
-
-RegisterNetEvent('gldnrmz-hookers:startSex', function()
-    local ped = PlayerPedId()
-    
-    print("^2[DEBUG]^7: startSex event triggered")
-    
-    -- Create a temporary hooker if needed
-    if not Hooker or not DoesEntityExist(Hooker) then
-        print("^3[WARNING]^7: Hooker entity not found, creating temporary one")
-        local playerCoords = GetEntityCoords(ped)
-        local model = GetHashKey("s_f_y_hooker_01")
-        
-        RequestModel(model)
-        while not HasModelLoaded(model) do
-            Wait(1)
-        end
-        
-        Hooker = CreatePed(4, model, playerCoords.x, playerCoords.y, playerCoords.z, 0.0, true, true)
-        SetEntityAsMissionEntity(Hooker, true, true)
-        SetBlockingOfNonTemporaryEvents(Hooker, true)
-    end
-    
-    print("^2[DEBUG]^7: Playing animations")
-    hookerAnim(Hooker,"mini@prostitutes@sexlow_veh","low_car_sex_loop_female")
-    playerAnim(ped,"mini@prostitutes@sexlow_veh","low_car_sex_loop_player")
-
-    if ProgressBar.Open({
-        name = "sex_with_hooker",
-        duration = 7500,
-        label = "Enjoying the moment...",
-        useWhileDead = true,
-        canCancel = true,
-        controlDisables = {
-            disableMovement = false,
-            disableCarMovement = true,
-            disableMouse = false,
-            disableCombat = true,
-        }
-    }, nil, true) then
-        ClearPedTasks(ped)
-        ClearPedTasks(Hooker)
-        HookerInCar = true
-        if Config.StressRelief and Config.StressRelief.Enabled then
-            TriggerServerEvent('gldnrmz-hookers:relieveStress', math.random(Config.StressRelief.Min, Config.StressRelief.Max))
-        end
-    end
-end)
-
--- Animation on Hooker
-function hookerAnim(Hooker, animDictionary, animationName, time)
-    if not DoesEntityExist(Hooker) or IsEntityDead(Hooker) then
-        return false
-    end
-    
-    if not loaddict(animDictionary) then
-        return false
-    end
-    
-    NetworkRequestControlOfEntity(Hooker)
-    SetEntityAsMissionEntity(Hooker, true, true)
-    TaskPlayAnim(Hooker, animDictionary, animationName, 8.0, -8.0, -1, 1, 0, false, false, false)
-    
-    TriggerServerEvent('gldnrmz-hookers:syncAnimation', NetworkGetNetworkIdFromEntity(Hooker), animDictionary, animationName)
-    
-    if time ~= nil then
-        Wait(time)
-    end
-    return true
-end
-
--- Animation on player
-function playerAnim(ped, animDictionary, animationName, time)
-    
-    if not DoesEntityExist(ped) or IsEntityDead(ped) then
-        return false
-    end
-    
-    if not loaddict(animDictionary) then
-        return false
-    end
-    
-    TaskPlayAnim(ped, animDictionary, animationName, 8.0, -8.0, -1, 1, 0, false, false, false)
-    TriggerServerEvent('gldnrmz-hookers:syncAnimation', NetworkGetNetworkIdFromEntity(ped), animDictionary, animationName)
-    return true
-end
-
--- Animation sync event handler
-RegisterNetEvent('gldnrmz-hookers:syncAnimationClient', function(netId, animDict, animName)
-    local entity = NetworkGetEntityFromNetworkId(netId)
-    if DoesEntityExist(entity) and loaddict(animDict) then
-        TaskPlayAnim(entity, animDict, animName, 1.0, -1.0, -1, 1, 1, true, true, true)
-    end
-end)
-
--- Load Models and AnimDict
-function loadmodel(model)
-    while not HasModelLoaded(model) do
-        RequestModel(model)
-        Wait(10)
-    end
-end
-
-function loaddict(dict)
-    if not DoesAnimDictExist(dict) then
-        return false
-    end
-    
-    RequestAnimDict(dict)
-    
-    local timeout = 0
-    while not HasAnimDictLoaded(dict) and timeout < 100 do
-        timeout = timeout + 1
-        Wait(10)
-    end
-    
-    if timeout >= 100 then
-        return false
-    end
-    
-    return true
-end
-
-function ArePedsNearby()
-    local playerPed = PlayerPedId()
-    local playerCoords = GetEntityCoords(playerPed)
-    local peds = GetGamePool('CPed')
-    
-    for _, ped in ipairs(peds) do
-        if ped ~= playerPed and ped ~= Hooker and not IsPedDeadOrDying(ped, true) then
-            local pedCoords = GetEntityCoords(ped)
-            if #(playerCoords - pedCoords) < Config.PedDetectionRadius then
-                return true
-            end
+    for _, ped in ipairs(GetGamePool('CPed')) do
+        if ped ~= player and ped ~= ignore
+            and #(origin - GetEntityCoords(ped)) < radius
+            and IsPedHuman(ped)
+            and not IsPedDeadOrDying(ped, true)
+            and (not vehicle or GetVehiclePedIsIn(ped, false) ~= vehicle) then
+            return true
         end
     end
     return false
 end
+
+---------------------------------------------------------------------
+-- Prompts and keybinds (event-driven, no per-frame key polling)
+---------------------------------------------------------------------
+local promptMode ---@type 'waiting'|'ready'|'ready_crowded'|nil
+local onInteract, onDismiss
+
+local interactKey = lib.addKeybind({
+    name = 'gldnrmz_hooker_interact',
+    description = locale('keybind_interact'),
+    defaultKey = Config.Keys.interact,
+    disabled = true,
+    onPressed = function() CreateThread(onInteract) end,
+})
+
+local dismissKey = lib.addKeybind({
+    name = 'gldnrmz_hooker_dismiss',
+    description = locale('keybind_dismiss'),
+    defaultKey = Config.Keys.dismiss,
+    disabled = true,
+    onPressed = function() CreateThread(onDismiss) end,
+})
+
+local function setPrompt(mode)
+    if mode == promptMode then return end
+    promptMode = mode
+
+    interactKey:disable(mode == nil)
+    dismissKey:disable(mode ~= 'ready' and mode ~= 'ready_crowded')
+
+    if not mode then
+        HelpText.HideHelpText()
+        return
+    end
+
+    local parts = {}
+    if mode == 'waiting' then
+        parts[1] = ('[%s] %s'):format(interactKey:getCurrentKey(), locale('honk_horn'))
+    else
+        parts[1] = ('[%s] %s'):format(dismissKey:getCurrentKey(), locale('tell_her_leave'))
+        if mode == 'ready' then
+            parts[2] = ('[%s] %s'):format(interactKey:getCurrentKey(), locale('open_services'))
+        end
+    end
+    HelpText.ShowHelpText(table.concat(parts, '  '), 'left')
+end
+
+---------------------------------------------------------------------
+-- Session lifecycle
+---------------------------------------------------------------------
+---@param deletePed boolean delete now, or release her to the world so she walks off
+local function endSession(deletePed)
+    if not hooker then return end
+    local ped, blip = hooker.ped, hooker.blip
+    hooker = nil
+    setPrompt(nil)
+
+    if blip and DoesBlipExist(blip) then RemoveBlip(blip) end
+    if DoesEntityExist(ped) then
+        if deletePed then
+            DeleteEntity(ped)
+        else
+            -- Give her time to finish her line before handing her back to the game AI.
+            releasing[ped] = true
+            SetTimeout(4000, function()
+                releasing[ped] = nil
+                if not DoesEntityExist(ped) then return end
+                SetEntityInvincible(ped, false)
+                SetBlockingOfNonTemporaryEvents(ped, false)
+                SetPedAsNoLongerNeeded(ped)
+            end)
+        end
+    end
+
+    TriggerServerEvent('gldnrmz-hookers:server:endSession')
+end
+
+local function dismiss()
+    if not hooker then return end
+    local ped = hooker.ped
+    if DoesEntityExist(ped) then
+        speak(ped, 'Hooker_Had_Enough', 'Speech_Params_Force_Shouted_Clear', hooker.voice)
+        local vehicle = GetVehiclePedIsIn(ped, false)
+        if vehicle ~= 0 then TaskLeaveVehicle(ped, vehicle, 0) end
+    end
+    endSession(false)
+end
+
+local function boardVehicle(vehicle)
+    local current = hooker
+    if not current then return end
+    local ped = current.ped
+    current.state = 'boarding'
+
+    ensureControl(ped)
+    ClearPedTasksImmediately(ped)
+    FreezeEntityPosition(ped, false)
+    TaskEnterVehicle(ped, vehicle, Config.BoardingTimeout * 1000, 0, 1.0, 1, 0)
+    -- Must come after ClearPedTasksImmediately, which cuts off any speech in progress.
+    speak(ped, 'Generic_Hows_It_Going', 'Speech_Params_Force', current.voice)
+
+    local deadline = GetGameTimer() + Config.BoardingTimeout * 1000
+    while hooker == current and GetGameTimer() < deadline do
+        if IsPedInVehicle(ped, vehicle, false) then break end
+        Wait(500)
+    end
+    if hooker ~= current then return end
+
+    if not IsPedInVehicle(ped, vehicle, false) then
+        if not IsVehicleSeatFree(vehicle, 0) or not DoesEntityExist(vehicle) then
+            return dismiss()
+        end
+        TaskWarpPedIntoVehicle(ped, vehicle, 0)
+    end
+    current.state = 'ready'
+end
+
+local function startService(service)
+    local current = hooker
+    if not current or current.state ~= 'ready' then return end
+    current.state = 'busy'
+
+    local ok, err = lib.callback.await('gldnrmz-hookers:server:purchase', false, service.id)
+    if not ok then
+        notify(err or 'not_enough_money', 'error')
+        if hooker == current then current.state = 'ready' end
+        return
+    end
+    notify('paid', 'success', service.price)
+    rollDispatch(Config.Dispatch.Service)
+
+    local player, ped = cache.ped, current.ped
+    local anim = service.anim
+    if ensureControl(ped) then playAnim(ped, anim.dict, anim.hooker) end
+    playAnim(player, anim.dict, anim.player)
+
+    -- Her lines while the service runs; waits for each line to end so they don't cut each other off.
+    local speech = service.speech
+    local running = true
+    if speech and speech.loop then
+        CreateThread(function()
+            while running and hooker == current do
+                if not IsAnySpeechPlaying(ped) then
+                    speak(ped, speech.loop, 'Speech_Params_Force', current.voice)
+                end
+                Wait(speech.interval or 2500)
+            end
+        end)
+    end
+
+    -- ox_lib format on purpose: the bridge's QB->ox converter always adds empty props,
+    -- which crashes ox_lib's progress bar (requestModel(nil)).
+    local completed = ProgressBar.Open({
+        duration = service.duration,
+        label = locale('enjoying'),
+        position = 'bottom',
+        useWhileDead = false,
+        canCancel = true,
+        disable = { car = true, combat = true },
+    })
+    running = false
+
+    if completed and speech and speech.finish and DoesEntityExist(ped) then
+        StopCurrentPlayingAmbientSpeech(ped)
+        speak(ped, speech.finish, 'Speech_Params_Force', current.voice)
+    end
+
+    ClearPedTasks(player)
+    if DoesEntityExist(ped) then ClearPedTasks(ped) end
+    RemoveAnimDict(anim.dict)
+
+    TriggerServerEvent('gldnrmz-hookers:server:serviceFinished', completed == true)
+    if hooker == current then current.state = 'ready' end
+end
+
+local function openServiceMenu()
+    local options = {}
+    for _, service in ipairs(Config.Services) do
+        options[#options + 1] = {
+            title = locale('menu_option', service.label, service.price),
+            icon = service.icon,
+            onSelect = function() CreateThread(function() startService(service) end) end,
+        }
+    end
+    options[#options + 1] = { title = locale('nevermind'), icon = 'circle-xmark', onSelect = function() end }
+
+    Menu.Open({ id = 'gldnrmz_hookers_services', title = locale('menu_title'), options = options })
+end
+
+---------------------------------------------------------------------
+-- Key handlers
+---------------------------------------------------------------------
+onInteract = function()
+    if not hooker then return end
+
+    if promptMode == 'waiting' then
+        local vehicle = cache.vehicle
+        if not vehicle then return end
+        setPrompt(nil)
+
+        StartVehicleHorn(vehicle, 800, `HELDDOWN`, false)
+        if hooker.blip then RemoveBlip(hooker.blip) hooker.blip = nil end
+        rollDispatch(Config.Dispatch.Pickup)
+        boardVehicle(vehicle)
+
+    elseif promptMode == 'ready' then
+        speak(hooker.ped, 'Hooker_Offer_Service', 'Speech_Params_Force_Shouted_Clear', hooker.voice)
+        openServiceMenu()
+
+    elseif promptMode == 'ready_crowded' then
+        notify('too_many_people', 'error')
+    end
+end
+
+onDismiss = function()
+    if promptMode == 'ready' or promptMode == 'ready_crowded' then
+        dismiss()
+    end
+end
+
+---------------------------------------------------------------------
+-- Hooker state loop (runs only while a session is active; 250ms-1s ticks)
+---------------------------------------------------------------------
+local function hookerLoop()
+    local nextCrowdCheck, crowded = 0, false
+
+    while hooker do
+        local sleep = 1000
+        local ped = hooker.ped
+        local vehicle = cache.vehicle
+        local isDriver = vehicle and cache.seat == -1
+        local now = GetGameTimer()
+
+        if not DoesEntityExist(ped) or IsPedDeadOrDying(ped, true) then
+            notify('hooker_gone', 'error')
+            endSession(false)
+            break
+        end
+
+        if hooker.state == 'waiting' then
+            if Config.PickupTimeout > 0 and now > hooker.expiresAt then
+                notify('hooker_left', 'error')
+                endSession(true)
+                break
+            end
+
+            local dist = #(GetEntityCoords(cache.ped) - GetEntityCoords(ped))
+            if dist < Config.PickupDistance * 3 then sleep = 250 end
+            setPrompt((isDriver and dist < Config.PickupDistance and IsVehicleSeatFree(vehicle, 0)) and 'waiting' or nil)
+
+        elseif hooker.state == 'ready' then
+            -- Player got out or she isn't in the car any more: she walks off.
+            if not vehicle or GetVehiclePedIsIn(ped, false) ~= vehicle then
+                dismiss()
+                break
+            end
+
+            sleep = 250
+            if isDriver and IsVehicleStopped(vehicle) then
+                if now >= nextCrowdCheck then
+                    crowded = arePedsNearby()
+                    nextCrowdCheck = now + 1000
+                end
+                setPrompt(crowded and 'ready_crowded' or 'ready')
+            else
+                nextCrowdCheck = 0
+                setPrompt(nil)
+            end
+
+        else -- boarding / busy
+            setPrompt(nil)
+        end
+
+        Wait(sleep)
+    end
+end
+
+local function spawnHooker(data, location)
+    local model = joaat(data.model)
+    if not pcall(lib.requestModel, model) then
+        dbg('failed to load model', data.model)
+        TriggerServerEvent('gldnrmz-hookers:server:endSession')
+        return
+    end
+
+    local ped = CreatePed(24, model, location.x, location.y, location.z, location.w, true, true)
+    SetModelAsNoLongerNeeded(model)
+    SetEntityAsMissionEntity(ped, true, true)
+    FreezeEntityPosition(ped, true)
+    SetEntityInvincible(ped, true)
+    SetBlockingOfNonTemporaryEvents(ped, true)
+    SetPedKeepTask(ped, true)
+    if data.voice then SetAmbientVoiceName(ped, data.voice) end
+    TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_SMOKING', 0, false)
+
+    -- Keep ownership on this client so her animations always play.
+    pcall(lib.waitFor, function() return NetworkGetEntityIsNetworked(ped) or nil end, nil, 2000)
+    local netId = NetworkGetNetworkIdFromEntity(ped)
+    SetNetworkIdCanMigrate(netId, false)
+    TriggerServerEvent('gldnrmz-hookers:server:registerHooker', netId)
+
+    local blip = AddBlipForCoord(location.x, location.y, location.z)
+    SetBlipSprite(blip, 280)
+    SetBlipColour(blip, 8)
+    BeginTextCommandSetBlipName('STRING')
+    AddTextComponentSubstringPlayerName(locale('hooker_blip'))
+    EndTextCommandSetBlipName(blip)
+    SetNewWaypoint(location.x, location.y)
+
+    hooker = {
+        ped = ped,
+        blip = blip,
+        name = data.name,
+        voice = data.voice,
+        state = 'waiting',
+        expiresAt = GetGameTimer() + Config.PickupTimeout * 1000,
+    }
+
+    notify('marked_on_gps', 'success', data.name)
+    CreateThread(hookerLoop)
+end
+
+---------------------------------------------------------------------
+-- Pimp (local ped, only exists while a player is nearby)
+---------------------------------------------------------------------
+local pimpPed
+
+local function talkToPimp(entity)
+    if hooker then return notify('already_have_hooker', 'error') end
+
+    local choice = exports.bl_dialog:showDialog({ ped = entity, dialog = Config.PimpDialog })
+    if choice ~= 'accept' then return end
+
+    local ok, data, spawnIndex = lib.callback.await('gldnrmz-hookers:server:requestHooker', false)
+    if not ok then return notify(data or 'pimp_busy', 'error') end
+
+    spawnHooker(data, Config.HookerSpawns[spawnIndex])
+end
+
+local function deletePimp()
+    if pimpPed and DoesEntityExist(pimpPed) then
+        Target.RemoveLocalEntity(pimpPed, 'gldnrmz_talk_to_pimp')
+        DeleteEntity(pimpPed)
+    end
+    pimpPed = nil
+end
+
+local pimpPoint = lib.points.new({
+    coords = Config.Pimp.coords.xyz,
+    distance = Config.Pimp.spawnDistance,
+})
+
+function pimpPoint:onEnter()
+    local cfg = Config.Pimp
+    local model = joaat(cfg.model)
+    if not pcall(lib.requestModel, model) then return end
+    if self.currentDistance and self.currentDistance > self.distance then return end -- left while loading
+
+    local ped = CreatePed(4, model, cfg.coords.x, cfg.coords.y, cfg.coords.z, cfg.coords.w, false, false)
+    SetModelAsNoLongerNeeded(model)
+    SetEntityInvincible(ped, true)
+    FreezeEntityPosition(ped, true)
+    SetBlockingOfNonTemporaryEvents(ped, true)
+    SetPedFleeAttributes(ped, 0, false)
+
+    if cfg.scenario and pcall(lib.requestAnimDict, cfg.scenario.dict) then
+        TaskPlayAnim(ped, cfg.scenario.dict, cfg.scenario.clip, 8.0, 1.0, -1, 1, 0, false, false, false)
+        RemoveAnimDict(cfg.scenario.dict)
+    end
+
+    Target.AddLocalEntity(ped, {
+        {
+            name = 'gldnrmz_talk_to_pimp',
+            icon = 'fa-solid fa-money-bill',
+            label = locale('talk_to_pimp'),
+            distance = 1.5,
+            onSelect = function(data)
+                local entity = type(data) == 'table' and data.entity or data
+                CreateThread(function() talkToPimp(entity) end)
+            end,
+        },
+    })
+
+    pimpPed = ped
+end
+
+function pimpPoint:onExit()
+    deletePimp()
+end
+
+---------------------------------------------------------------------
+-- Cleanup
+---------------------------------------------------------------------
+AddEventHandler('onResourceStop', function(resource)
+    if resource ~= RESOURCE then return end
+    if hooker then
+        if hooker.blip and DoesBlipExist(hooker.blip) then RemoveBlip(hooker.blip) end
+        if DoesEntityExist(hooker.ped) then DeleteEntity(hooker.ped) end
+        hooker = nil
+    end
+    for ped in pairs(releasing) do
+        if DoesEntityExist(ped) then DeleteEntity(ped) end
+    end
+    if promptMode then HelpText.HideHelpText() end
+    deletePimp()
+end)

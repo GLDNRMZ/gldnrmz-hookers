@@ -1,0 +1,23 @@
+{
+  "talk_to_pimp": "Talk to Pimp",
+  "already_have_hooker": "You already have a girl waiting on you.",
+  "pimp_busy": "Come back in a bit, my girls are busy.",
+  "marked_on_gps": "%s is marked on your GPS, go & enjoy!",
+  "hooker_blip": "Hooker",
+  "honk_horn": "Honk Horn",
+  "open_services": "Open Services",
+  "tell_her_leave": "Tell her to leave",
+  "too_many_people": "Too many people around!",
+  "menu_title": "Select Service",
+  "menu_option": "%s - $%s",
+  "nevermind": "Nevermind",
+  "paid": "You paid $%s.",
+  "not_enough_money": "You do not have enough money.",
+  "on_cooldown": "Give her a minute...",
+  "not_in_car": "She needs to be in your car.",
+  "enjoying": "Enjoying the moment...",
+  "hooker_left": "She got tired of waiting and left.",
+  "hooker_gone": "She's gone.",
+  "keybind_interact": "Hooker: honk / open services",
+  "keybind_dismiss": "Hooker: tell her to leave"
+}
