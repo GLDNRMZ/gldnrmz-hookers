@@ -5,7 +5,7 @@ lua54 'yes'
 name 'gldnrmz-hookers'
 author 'Marfy, GLDNRMZ'
 description 'Pimp NPC, hooker pickups and in-vehicle services'
-version '2.0.0'
+version '2.1.0'
 
 ox_lib 'locale'
 
