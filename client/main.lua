@@ -35,7 +35,13 @@ end
 
 local function rollDispatch(cfg)
     if cfg.Enabled and math.random(100) <= cfg.Chance then
-        Dispatch.SendAlert(cfg.Alert)
+        local fn = Config.Dispatch.Function
+        if fn then
+            local ok, err = pcall(fn, cfg.Alert, GetEntityCoords(cache.ped))
+            if not ok then print(('[gldnrmz-hookers] Config.Dispatch.Function failed: %s'):format(err)) end
+        else
+            Dispatch.SendAlert(cfg.Alert)
+        end
     end
 end
 

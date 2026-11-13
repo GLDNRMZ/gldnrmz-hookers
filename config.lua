@@ -91,6 +91,27 @@ Config.Dispatch = {
             jobs = { 'police' },
         },
     },
+    -- alert = the Pickup / Service Alert table above.
+    -- Default: community_bridge sends it to whatever dispatch you run (ps / cd / qs / lb / tk / ...).
+    Function = function(alert, coords)
+        exports.community_bridge:Dispatch().SendAlert({
+            message = alert.message, code = alert.code, coords = coords, jobs = alert.jobs, blipData = alert.blipData,
+        })
+    end,
+    -- tk_dispatch directly (more detail), if you prefer:
+    --[[ Function = function(alert, coords)
+        exports.tk_dispatch:addCall({
+            title = alert.message,
+            code = alert.code,
+            priority = 'Priority 2',
+            coords = coords,
+            showLocation = true,
+            showGender = true,
+            playSound = true,
+            blip = alert.blipData,
+            jobs = alert.jobs,
+        })
+    end, ]]
 }
 
 ---------------------------------------------------------------------
