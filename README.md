@@ -2,7 +2,7 @@
 
 Pimp NPC, hooker pickups and in-vehicle services for FiveM, built on [community_bridge](https://github.com/TheOrderFivem/community_bridge) so it works with Qbox, QBCore and ESX.
 
-## Features
+## ✨ Features
 
 - **Pimp NPC** with a [bl_dialog](https://github.com/Byte-Labs-Studio/bl_dialog) conversation. The ped only exists while a player is nearby.
 - **Server-picked hooker and location**, marked with a blip and GPS waypoint. She leaves if you don't pick her up in time.
@@ -13,20 +13,20 @@ Pimp NPC, hooker pickups and in-vehicle services for FiveM, built on [community_
 - **Stress relief** through community_bridge, and **police alerts** through `Config.Dispatch.Function` (community_bridge by default; a tk_dispatch example is included).
 - **Server-validated**: the server checks she is in your car before charging you, picks the stress amount itself, enforces a cooldown, and deletes her if you disconnect.
 
-## Dependencies
+## 📦 Dependencies
 
-- OneSync
+- [OneSync](https://docs.fivem.net/docs/scripting-reference/onesync/)
 - [ox_lib](https://github.com/overextended/ox_lib)
 - [community_bridge](https://github.com/TheOrderFivem/community_bridge) **0.13.6+** (framework, target, menu, notify, help text, progress bar, dispatch)
 - [bl_dialog](https://github.com/Byte-Labs-Studio/bl_dialog)
 
-## Installation
+## ⚡ Installation
 
 1. Place the resource in your resources folder.
 2. Make sure it starts after its dependencies, e.g. `ensure gldnrmz-hookers`.
 3. Adjust `config.lua`. Text lives in `locales/en.json`.
 
-## Usage
+## 🎮 Usage
 
 1. Talk to the Pimp and accept.
 2. Drive to the GPS marker. As the driver, with the front passenger seat free, press **E** to honk.
@@ -35,11 +35,11 @@ Pimp NPC, hooker pickups and in-vehicle services for FiveM, built on [community_
    - **H**: tell her to leave
 4. Getting out of the car also sends her away.
 
-## Changes in 2.1.0
+## 🆕 Changes in 2.1.0
 
 - Police alerts go through `Config.Dispatch.Function`, so any dispatch can be used.
 
-## Upgrading from 1.x
+## 🆕 Upgrading from 1.x
 
 - `Config.BlowjobPrice` / `Config.SexPrice` moved into `Config.Services`.
 - `Config.PimpGuy` / `Config.Zones` became `Config.Pimp`.
@@ -48,7 +48,20 @@ Pimp NPC, hooker pickups and in-vehicle services for FiveM, built on [community_
 - The pimp dialog's accept button now needs `id = 'accept'` instead of an `onSelect`.
 - The old net events (`gldnrmz-hookers:pay`, `:relieveStress`, `:syncAnimation`, etc.) were removed.
 
-## Credits
+## 🙏 Credits
 
 - Marfy
 - GLDNRMZ
+
+<!-- gldnrmz-links -->
+---
+
+## 🔗 Links
+
+<p align="center">
+  <a href="https://discord.gg/7YHJ7774jA"><img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" /></a>
+  <a href="https://forum.cfx.re/u/gldnrmz/summary"><img src="https://img.shields.io/badge/Cfx.re-F40552?style=for-the-badge&logoColor=white" alt="Cfx.re forum" /></a>
+  <a href="https://5metrics.dev/resources?search=gldnrmz"><img src="https://img.shields.io/badge/5Metrics-00BFFF?style=for-the-badge&logoColor=white" alt="5Metrics" /></a>
+  <a href="https://gldnrmz.tebex.io"><img src="https://img.shields.io/badge/Tebex-FFD700?style=for-the-badge&logoColor=black" alt="Tebex store" /></a>
+  <a href="https://www.buymeacoffee.com/gldnrmz"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FF813F?style=for-the-badge&logo=buymeacoffee&logoColor=white" alt="Buy me a coffee" /></a>
+</p>
