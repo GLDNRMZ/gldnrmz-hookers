@@ -53,6 +53,10 @@ Pimp NPC, hooker pickups and in-vehicle services for FiveM, built on [community_
 - Marfy
 - GLDNRMZ
 
+## 📄 License
+
+[GPL-3.0](LICENSE). This script is based on Marfy's original work, which keeps it under the GPL. Keep all author credits.
+
 <!-- gldnrmz-links -->
 ---
 
