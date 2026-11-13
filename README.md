@@ -1,6 +1,6 @@
 # gldnrmz-hookers
 
-Pimp NPC, hooker pickups and in-vehicle services for FiveM, built on [community_bridge](https://github.com/The-Order-Of-The-Sacred-Framework/community_bridge) so it works with Qbox, QBCore and ESX.
+Pimp NPC, hooker pickups and in-vehicle services for FiveM, built on [community_bridge](https://github.com/TheOrderFivem/community_bridge) so it works with Qbox, QBCore and ESX.
 
 ## Features
 
@@ -10,14 +10,14 @@ Pimp NPC, hooker pickups and in-vehicle services for FiveM, built on [community_
 - **Privacy check**: services are blocked while anyone else is within `Config.PedDetectionRadius`.
 - **Services** are defined in config (price, duration, animations), so you can add your own.
 - **Rebindable keys** (Settings > Key Bindings > FiveM).
-- **Stress relief** and **dispatch alerts** through community_bridge.
+- **Stress relief** through community_bridge, and **police alerts** through `Config.Dispatch.Function` (community_bridge by default; a tk_dispatch example is included).
 - **Server-validated**: the server checks she is in your car before charging you, picks the stress amount itself, enforces a cooldown, and deletes her if you disconnect.
 
 ## Dependencies
 
 - OneSync
 - [ox_lib](https://github.com/overextended/ox_lib)
-- [community_bridge](https://github.com/The-Order-Of-The-Sacred-Framework/community_bridge) (framework, target, menu, notify, help text, progress bar, dispatch)
+- [community_bridge](https://github.com/TheOrderFivem/community_bridge) **0.13.6+** (framework, target, menu, notify, help text, progress bar, dispatch)
 - [bl_dialog](https://github.com/Byte-Labs-Studio/bl_dialog)
 
 ## Installation
@@ -34,6 +34,10 @@ Pimp NPC, hooker pickups and in-vehicle services for FiveM, built on [community_
    - **E**: open the services menu (only when nobody is around)
    - **H**: tell her to leave
 4. Getting out of the car also sends her away.
+
+## Changes in 2.1.0
+
+- Police alerts go through `Config.Dispatch.Function`, so any dispatch can be used.
 
 ## Upgrading from 1.x
 
